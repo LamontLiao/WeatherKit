@@ -35,6 +35,8 @@ rules:
         match: QUIC
     policy: REJECT-DROP
 url_rewrites:
+- match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/airQualityScale\/
+  location: https://weatherkit.nanocat.cloud/api/v1/airQualityScale/
 - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/availability\/
   location: https://weatherkit.nanocat.cloud/api/v1/availability/
 - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v2\/weather\/

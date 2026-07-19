@@ -14,8 +14,8 @@ author: |-
 homepage: "https://NSRingo.github.io/guide/Weather/weather-kit"
 icon: "https://developer.apple.com/assets/elements/icons/weatherkit/weatherkit-128x128.png"
 category: " iRingo"
-date: "2026-07-19 23:37:10"
-version: "3.2.0-ios27.5"
+date: "2026-07-20 00:33:02"
+version: "3.2.0-ios27.6"
 
 rules:
   - DOMAIN,weather-analytics-events.apple.com,REJECT-DROP
@@ -27,10 +27,20 @@ http:
   mitm:
     - "weatherkit.apple.com"
   script:
+    - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/airQualityScale\/
+      name: WeatherKit.api.v1.airQualityScale.request
+      type: request
+      require-body: false
+      argument:
     - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v2\/weather\/
       name: WeatherKit.api.v2.weather.request
       type: request
       require-body: false
+      argument:
+    - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/airQualityScale\/
+      name: WeatherKit.api.v1.airQualityScale.response
+      type: response
+      require-body: true
       argument:
     - match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/availability\/
       name: WeatherKit.api.v1.availability.response
@@ -45,8 +55,14 @@ http:
       argument:
 
 script-providers:
+  WeatherKit.api.v1.airQualityScale.request:
+    url: https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js
+    interval: 86400
   WeatherKit.api.v2.weather.request:
     url: https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js
+    interval: 86400
+  WeatherKit.api.v1.airQualityScale.response:
+    url: https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js
     interval: 86400
   WeatherKit.api.v1.availability.response:
     url: https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js

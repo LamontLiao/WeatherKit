@@ -60,6 +60,7 @@ test("published platform artifacts share the full settings and branch bundle", a
     for (const name of artifactNames) {
         const artifact = await readFile(new URL(`../modules/WeatherkitFix27/${name}`, import.meta.url), "utf8");
         assert.match(artifact, /weatherkit\.apple\.com/);
+        assert.match(artifact, /airQualityScale/);
         assert.match(artifact, /api\\?\/v2\\?\/weather|api\/v2\/weather/);
         assert.equal(artifact.includes(responseBundle), true, name);
         assert.equal(artifact.includes(requestBundle), true, name);

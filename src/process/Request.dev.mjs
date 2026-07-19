@@ -108,6 +108,9 @@ export async function Request($request) {
                             }
                             break;
                         }
+                        case url.pathname.startsWith("/api/v1/airQualityScale/"):
+                            $request.headers["Cache-Control"] = "no-cache";
+                            break;
                     }
                     break;
                 case "weather-map2.apple.com": {

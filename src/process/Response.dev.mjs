@@ -8,6 +8,7 @@ import WeatherKit2 from "../class/WeatherKit2.mjs";
 import parseWeatherKitURL from "../function/parseWeatherKitURL.mjs";
 import providerNameToLogo from "../function/providerNameToLogo.mjs";
 import resolveWeatherKitAirQualityScale from "../function/resolveWeatherKitAirQualityScale.mjs";
+import patchWeatherKitAirQualityScale, { disableWeatherKitAirQualityScaleCache } from "../function/patchWeatherKitAirQualityScale.mjs";
 import ColorfulClouds from "../class/ColorfulClouds.mjs";
 import QWeather from "../class/QWeather.mjs";
 import WAQI from "../class/WAQI.mjs";
@@ -76,6 +77,12 @@ export async function Response($request, $response) {
                         Console.debug(`body: ${JSON.stringify(body)}`);
                         body = mergeWeatherKitAvailability(body, Configs?.Availability?.v2);
                         $response.headers = refreshWeatherKitAvailabilityCache($response.headers);
+                    } else if (url.pathname.startsWith("/api/v1/airQualityScale/")) {
+                        const patchedBody = patchWeatherKitAirQualityScale(body);
+                        if (patchedBody !== body) {
+                            body = patchedBody;
+                            $response.headers = disableWeatherKitAirQualityScaleCache($response.headers);
+                        }
                     }
                     break;
             }

@@ -87,3 +87,34 @@ test("availability keeps Apple's capabilities and appends plugin requirements in
         assert.equal("ETag" in response.headers, false);
     }
 });
+
+test("EU EAQI metadata opts into numeric display and disables the year-long cache", async () => {
+    for (const handler of [Response, ResponseDev]) {
+        const response = await handler(
+            { url: "https://weatherkit.apple.com/api/v1/airQualityScale/en-US/EU.EAQI.2604" },
+            {
+                body: JSON.stringify({ name: "EU.EAQI.2604", aqi: { numerical: false, range: [0, 60] } }),
+                headers: { "Content-Type": "application/json", "Cache-Control": "max-age=31536000", ETag: '"scale"' },
+            },
+        );
+        const body = JSON.parse(response.body);
+        assert.equal(body.aqi.numerical, true);
+        assert.deepEqual(body.aqi.range, [0, 60]);
+        assert.equal(response.headers["Cache-Control"], "no-store");
+        assert.equal("ETag" in response.headers, false);
+    }
+});
+
+test("AQ scale requests force revalidation without changing the scale id", async () => {
+    for (const handler of [Request, RequestDev]) {
+        const request = {
+            headers: { "If-None-Match": '"scale"' },
+            method: "GET",
+            url: "https://weatherkit.apple.com/api/v1/airQualityScale/en-US/EU.EAQI.2604",
+        };
+        const result = await handler(request);
+        assert.equal(result.$request.url, request.url);
+        assert.equal(result.$request.headers["If-None-Match"], undefined);
+        assert.equal(result.$request.headers["Cache-Control"], "no-cache");
+    }
+});
