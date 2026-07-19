@@ -7,6 +7,7 @@ import * as flatbuffers from "flatbuffers";
 import WeatherKit2 from "../class/WeatherKit2.mjs";
 import parseWeatherKitURL from "../function/parseWeatherKitURL.mjs";
 import providerNameToLogo from "../function/providerNameToLogo.mjs";
+import resolveWeatherKitAirQualityScale from "../function/resolveWeatherKitAirQualityScale.mjs";
 import ColorfulClouds from "../class/ColorfulClouds.mjs";
 import QWeather from "../class/QWeather.mjs";
 import WAQI from "../class/WAQI.mjs";
@@ -95,6 +96,7 @@ export async function Response($request, $response) {
                                     qWeather: new QWeather(parameters, Settings?.API?.QWeather?.Token, Settings?.API?.QWeather?.Host),
                                     waqi: new WAQI(parameters, Settings?.API?.WAQI?.Token),
                                     country: parameters.country,
+                                    resolveAirQualityScale: (scale, referenceScale) => resolveWeatherKitAirQualityScale(scale, referenceScale, PATHs[3], $request.headers),
                                 };
 
                                 await Promise.all(
@@ -366,7 +368,7 @@ export async function InjectAirQuality(airQuality, Settings, Caches, enviroments
     const needInjectIndex = needPollutants || Settings?.AirQuality?.Current?.Index?.Replace?.includes(AirQuality.GetNameFromScale(airQuality?.scale));
     let injectedIndex = needInjectIndex ? await InjectIndex(injectedPollutants, Settings, enviroments) : injectedPollutants;
     if (needInjectIndex && injectedIndex?.metadata && !injectedIndex.metadata.temporarilyUnavailable && injectedIndex?.scale) {
-        const matchedScale = AirQuality.MatchWeatherKitScaleVersion(injectedIndex.scale, airQuality?.scale);
+        const matchedScale = enviroments.resolveAirQualityScale ? await enviroments.resolveAirQualityScale(injectedIndex.scale, airQuality?.scale) : AirQuality.MatchWeatherKitScaleVersion(injectedIndex.scale, airQuality?.scale);
         if (matchedScale !== injectedIndex.scale) {
             Console.info("InjectAirQuality", `Match WeatherKit scale version: ${injectedIndex.scale} -> ${matchedScale}`);
             injectedIndex = { ...injectedIndex, scale: matchedScale };

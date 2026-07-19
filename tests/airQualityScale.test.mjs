@@ -8,6 +8,7 @@ globalThis.$argument = { LogLevel: "OFF", Storage: "database" };
 
 const [{ default: AirQuality }, { default: QWeather }, { default: WAQI }, { default: WeatherKit2 }, { Console }] = await Promise.all([import("../src/class/AirQuality.mjs"), import("../src/class/QWeather.mjs"), import("../src/class/WAQI.mjs"), import("../src/class/WeatherKit2.mjs"), import("@nsnanocat/util")]);
 const { InjectAirQuality } = await import("../src/process/Response.mjs");
+const { default: resolveWeatherKitAirQualityScale } = await import("../src/function/resolveWeatherKitAirQualityScale.mjs");
 Console.logLevel = "OFF";
 
 test("all built-in AQ algorithms use Apple versionless scale aliases", () => {
@@ -93,6 +94,32 @@ test("iOS 27 injected indexes adopt the current Apple scale version", async () =
     assert.equal(result.scale, "EU.EAQI.2604");
     assert.equal(Number.isFinite(result.index), true);
     assert.equal(Number.isFinite(result.categoryIndex), true);
+});
+
+test("cities without an Apple AQ table resolve the current canonical scale dynamically", async () => {
+    let requestedUrl;
+    const result = await resolveWeatherKitAirQualityScale(
+        "EU.EAQI",
+        undefined,
+        "en-US",
+        { Authorization: "test-token", "User-Agent": "WeatherKit test" },
+        async request => {
+            requestedUrl = request.url;
+            assert.equal(request.headers.Authorization, "test-token");
+            return { body: JSON.stringify({ name: "EU.EAQI.2604" }), ok: true, status: 200 };
+        },
+    );
+
+    assert.equal(requestedUrl, "https://weatherkit.apple.com/api/v1/airQualityScale/en-US/EU.EAQI");
+    assert.equal(result, "EU.EAQI.2604");
+});
+
+test("an Apple-provided scale version avoids an extra metadata request", async () => {
+    const result = await resolveWeatherKitAirQualityScale("EU.EAQI", "HJ6332012.2604", "en-US", { Authorization: "test-token" }, async () => {
+        throw new Error("fetch should not run");
+    });
+
+    assert.equal(result, "EU.EAQI.2604");
 });
 
 test("calculated EU AQI keeps its numeric fields and current scale through FlatBuffer encoding", () => {
