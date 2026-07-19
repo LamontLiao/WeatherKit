@@ -422,9 +422,8 @@ export function hasUsableAndFreshForecastNextHour(data, now = Math.trunc(Date.no
  * @returns {Promise<any>} 合并后的空气质量对象
  */
 export async function InjectAirQuality(airQuality, Settings, Caches, enviroments) {
-    // Step1. 修复污染物单位，并将 Apple AQ scale 归一为不绑定版本的稳定标识
+    // Step1. 修复污染物单位；Apple 原始 scale 版本必须保留，供 iOS 27 加载标准元数据
     airQuality = AirQuality.FixPollutantsUnits(airQuality);
-    airQuality = AirQuality.NormalizeScaleIdentifier(airQuality);
 
     // Step2. 判断原始污染物是否为空，并在需要时注入污染物数据
     const isPollutantEmpty = !Array.isArray(airQuality?.pollutants) || airQuality.pollutants.length === 0;
@@ -434,7 +433,14 @@ export async function InjectAirQuality(airQuality, Settings, Caches, enviroments
 
     // Step3. 根据污染物补齐情况与替换配置，决定是否注入 AQI 指数
     const needInjectIndex = needPollutants || Settings?.AirQuality?.Current?.Index?.Replace?.includes(AirQuality.GetNameFromScale(airQuality?.scale));
-    const injectedIndex = needInjectIndex ? await InjectIndex(injectedPollutants, Settings, enviroments) : injectedPollutants;
+    let injectedIndex = needInjectIndex ? await InjectIndex(injectedPollutants, Settings, enviroments) : injectedPollutants;
+    if (needInjectIndex && injectedIndex?.metadata && !injectedIndex.metadata.temporarilyUnavailable && injectedIndex?.scale) {
+        const matchedScale = AirQuality.MatchWeatherKitScaleVersion(injectedIndex.scale, airQuality?.scale);
+        if (matchedScale !== injectedIndex.scale) {
+            Console.info("InjectAirQuality", `Match WeatherKit scale version: ${injectedIndex.scale} -> ${matchedScale}`);
+            injectedIndex = { ...injectedIndex, scale: matchedScale };
+        }
+    }
 
     // Step4. 计算昨日对比是否需要重算；若未知则注入昨日对比结果
     const weatherKitComparison = airQuality?.previousDayComparison ?? AirQuality.Config.CompareCategoryIndexes.UNKNOWN;

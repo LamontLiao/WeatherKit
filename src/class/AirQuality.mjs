@@ -327,24 +327,31 @@ export default class AirQuality {
         }
     }
 
-    // Apple 的无版本 AQ scale 路径会解析到当前资源；仅自定义 scale 明确配置版本时才拼接。
+    // 计算器内部使用稳定的无版本标识，写回 WeatherKit 时再跟随 Apple 响应的版本。
     static ToWeatherKitScale = ({ name, version }) => (version ? `${name}.${version}` : name);
 
     /**
-     * 将已知 AQ scale 归一为配置中的稳定标识。
+     * 保留注入后的标准名称，同时采用当前 Apple 响应携带的标准版本。
      *
-     * Apple 内置 scale 使用无版本 alias，由服务端解析到当前资源；这里只替换 scale 字符串，
-     * 不重算 index、categoryIndex 或污染物，避免元数据升级改变已有空气质量结果。
+     * iOS 27 会用完整 scale id 查找空气质量标准元数据。若写回裸标识或旧版本，
+     * 即使 index/categoryIndex 已存在，天气 App 仍可能隐藏具体指数。
      */
-    static NormalizeScaleIdentifier(airQuality) {
+    static MatchWeatherKitScaleVersion(scale, referenceScale) {
+        if (typeof scale !== "string") return scale;
+
+        const scaleName = AirQuality.GetNameFromScale(scale);
+        const referenceVersion = typeof referenceScale === "string" ? referenceScale.match(/\.(\d+)$/)?.[1] : undefined;
+        return referenceVersion ? `${scaleName}.${referenceVersion}` : scale;
+    }
+
+    /**
+     * 将 AQ scale 的名称与指定 Apple 参考版本对齐。
+     * 没有参考版本时保持原值，绝不能从真实响应中删除版本后缀。
+     */
+    static NormalizeScaleIdentifier(airQuality, referenceScale) {
         if (!airQuality?.scale) return airQuality;
-
-        const scaleName = AirQuality.GetNameFromScale(airQuality.scale);
-        const scale = Object.values(AirQuality.Config.Scales).find(({ weatherKitScale }) => weatherKitScale.name === scaleName);
-        if (!scale) return airQuality;
-
-        const currentScale = AirQuality.ToWeatherKitScale(scale.weatherKitScale);
-        return airQuality.scale === currentScale ? airQuality : { ...airQuality, scale: currentScale };
+        const matchedScale = AirQuality.MatchWeatherKitScaleVersion(airQuality.scale, referenceScale);
+        return airQuality.scale === matchedScale ? airQuality : { ...airQuality, scale: matchedScale };
     }
 
     static GetNameFromScale(scale) {

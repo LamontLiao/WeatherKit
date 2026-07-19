@@ -7,6 +7,7 @@ globalThis.$persistentStore = { read: () => null, write: () => true };
 globalThis.$argument = { LogLevel: "OFF", Storage: "database" };
 
 const [{ default: AirQuality }, { default: QWeather }, { default: WAQI }, { default: WeatherKit2 }, { Console }] = await Promise.all([import("../src/class/AirQuality.mjs"), import("../src/class/QWeather.mjs"), import("../src/class/WAQI.mjs"), import("../src/class/WeatherKit2.mjs"), import("@nsnanocat/util")]);
+const { InjectAirQuality } = await import("../src/process/Response.mjs");
 Console.logLevel = "OFF";
 
 test("all built-in AQ algorithms use Apple versionless scale aliases", () => {
@@ -30,6 +31,68 @@ test("scale helpers preserve dotted aliases and optional custom versions", () =>
     assert.equal(AirQuality.GetNameFromScale("EU.EAQI"), "EU.EAQI");
     assert.equal(AirQuality.GetNameFromScale("EU.EAQI.2414"), "EU.EAQI");
     assert.equal(AirQuality.ToWeatherKitScale({ name: "HK.AQHI", version: "2414" }), "HK.AQHI.2414");
+    assert.equal(AirQuality.MatchWeatherKitScaleVersion("EU.EAQI", "HJ6332012.2604"), "EU.EAQI.2604");
+    assert.equal(AirQuality.MatchWeatherKitScaleVersion("EPA_NowCast.2414", "DAQI.2604"), "EPA_NowCast.2604");
+    assert.equal(AirQuality.MatchWeatherKitScaleVersion("EU.EAQI", undefined), "EU.EAQI");
+});
+
+test("iOS 27 keeps Apple's scale version when no index replacement succeeds", async () => {
+    const airQuality = {
+        metadata: { providerName: "QWeather", temporarilyUnavailable: false },
+        categoryIndex: 1,
+        index: 28,
+        pollutants: [{ amount: 15, pollutantType: "PM2_5", units: "MICROGRAMS_PER_CUBIC_METER" }],
+        previousDayComparison: "SAME",
+        primaryPollutant: "NOT_AVAILABLE",
+        scale: "HJ6332012.2604",
+    };
+    const result = await InjectAirQuality(
+        airQuality,
+        {
+            AirQuality: {
+                Current: { Fill: "CN", Pollutants: { Units: { Replace: [], Mode: "Scale" } }, Index: { Replace: [], Provider: "Calculate" } },
+                Comparison: { Fill: "", ReplaceWhenCurrentChange: false },
+            },
+        },
+        {},
+        { country: "CN" },
+    );
+
+    assert.equal(result.scale, "HJ6332012.2604");
+    assert.equal(result.index, 28);
+    assert.equal(result.categoryIndex, 1);
+});
+
+test("iOS 27 injected indexes adopt the current Apple scale version", async () => {
+    const airQuality = {
+        metadata: { providerName: "QWeather", temporarilyUnavailable: false },
+        categoryIndex: 1,
+        index: 28,
+        pollutants: [{ amount: 15, pollutantType: "PM2_5", units: "MICROGRAMS_PER_CUBIC_METER" }],
+        previousDayComparison: "SAME",
+        primaryPollutant: "NOT_AVAILABLE",
+        scale: "HJ6332012.2604",
+    };
+    const result = await InjectAirQuality(
+        airQuality,
+        {
+            AirQuality: {
+                Current: {
+                    Fill: "CN",
+                    Pollutants: { Units: { Replace: [], Mode: "Scale" } },
+                    Index: { Replace: ["HJ6332012"], Provider: "Calculate", ForceCNPrimaryPollutants: true },
+                },
+                Comparison: { Fill: "", ReplaceWhenCurrentChange: false },
+                Calculate: { Algorithm: "EU_EAQI", AllowOverRange: true },
+            },
+        },
+        {},
+        { country: "CN" },
+    );
+
+    assert.equal(result.scale, "EU.EAQI.2604");
+    assert.equal(Number.isFinite(result.index), true);
+    assert.equal(Number.isFinite(result.categoryIndex), true);
 });
 
 test("calculated EU AQI keeps its numeric fields and current scale through FlatBuffer encoding", () => {
@@ -56,15 +119,16 @@ test("calculated EU AQI keeps its numeric fields and current scale through FlatB
     assert.equal(decoded.scale, "EU.EAQI");
 });
 
-test("known stale AQ scales normalize without recalculating existing values", () => {
+test("AQ scale normalization never discards a version without an Apple reference", () => {
     const stale = { categoryIndex: 2, index: 13, pollutants: [{ pollutantType: "NO2" }], scale: "EU.EAQI.2414" };
-    const migrated = AirQuality.NormalizeScaleIdentifier(stale);
+    const unchanged = AirQuality.NormalizeScaleIdentifier(stale);
+    const migrated = AirQuality.NormalizeScaleIdentifier(stale, "HJ6332012.2604");
 
-    assert.notEqual(migrated, stale);
-    assert.equal(migrated.scale, "EU.EAQI");
+    assert.equal(unchanged, stale);
+    assert.equal(migrated.scale, "EU.EAQI.2604");
     assert.equal(migrated.index, stale.index);
     assert.deepEqual(migrated.pollutants, stale.pollutants);
-    assert.equal(AirQuality.NormalizeScaleIdentifier({ scale: "EU.EAQI.2604" }).scale, "EU.EAQI");
+    assert.equal(AirQuality.NormalizeScaleIdentifier({ scale: "EU.EAQI.2604" }).scale, "EU.EAQI.2604");
     assert.equal(AirQuality.NormalizeScaleIdentifier({ scale: "HK.AQHI.2414" }).scale, "HK.AQHI.2414");
     assert.equal(AirQuality.NormalizeScaleIdentifier({ scale: "UNKNOWN.2414" }).scale, "UNKNOWN.2414");
 });
