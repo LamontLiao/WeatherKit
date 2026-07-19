@@ -54,15 +54,20 @@ test("only response-injectable datasets remain configurable", () => {
 test("availability keeps Apple's capabilities and appends plugin requirements in prod and dev", async () => {
     const appleCapabilities = ["currentWeather", "forecastSnowfall", "weatherMaps"];
     const expected = [...new Set([...appleCapabilities, ...database.WeatherKit.Configs.Availability.v2])];
+    assert.ok(expected.includes("dataNotice"));
+    assert.ok(expected.includes("forecastPeriodic"));
+    assert.ok(expected.includes("highlights"));
 
     for (const handler of [Response, ResponseDev]) {
         const response = await handler(
             { url: "https://weatherkit.apple.com/api/v1/availability/en-US/22.5431/114.0579" },
             {
                 body: JSON.stringify(appleCapabilities),
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "Cache-Control": "max-age=86400", ETag: '"1hr--gzip"' },
             },
         );
         assert.deepEqual(JSON.parse(response.body), expected);
+        assert.equal(response.headers["Cache-Control"], "max-age=300, public, s-maxage=300");
+        assert.equal("ETag" in response.headers, false);
     }
 });

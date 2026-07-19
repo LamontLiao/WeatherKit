@@ -18,7 +18,7 @@ export default {
         Configs: {
             Availability: {
                 v1: ["currentWeather", "dailyForecast", "hourlyForecast", "minuteForecast", "weatherAlerts"],
-                v2: ["airQuality", "currentWeather", "forecastDaily", "forecastHourly", "forecastPeriodic", "historicalComparisons", "weatherChanges", "forecastNextHour", "weatherAlerts", "weatherAlertNotifications", "news"],
+                v2: ["airQuality", "currentWeather", "dataNotice", "forecastDaily", "forecastHourly", "forecastPeriodic", "highlights", "historicalComparisons", "weatherChanges", "forecastNextHour", "weatherAlerts", "weatherAlertNotifications", "news"],
             },
         },
     },

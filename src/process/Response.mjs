@@ -1,7 +1,7 @@
 import { Console, Lodash as _, Storage } from "@nsnanocat/util";
 import database from "../function/database.mjs";
 import matchRegion from "../function/matchRegion.mjs";
-import mergeWeatherKitAvailability from "../function/mergeWeatherKitAvailability.mjs";
+import mergeWeatherKitAvailability, { refreshWeatherKitAvailabilityCache } from "../function/mergeWeatherKitAvailability.mjs";
 import setENV from "../function/setENV.mjs";
 import * as flatbuffers from "flatbuffers";
 import WeatherKit2 from "../class/WeatherKit2.mjs";
@@ -62,6 +62,7 @@ export async function Response($request, $response) {
                     // 路径判断
                     if (url.pathname.startsWith("/api/v1/availability/")) {
                         body = mergeWeatherKitAvailability(body, Configs?.Availability?.v2);
+                        $response.headers = refreshWeatherKitAvailabilityCache($response.headers);
                     }
                     break;
             }
