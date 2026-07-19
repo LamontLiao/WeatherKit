@@ -34,7 +34,7 @@ test("WeatherKit locales split language, script, and country deterministically",
 
 test("request keeps future datasets while removing a known explicitly disabled dataset", async () => {
     const input = "airQuality,news,forecastPrecipitation,forecastNextHour,currentWeather";
-    const expected = ["airQuality", "news", "forecastPrecipitation", "currentWeather"];
+    const expected = ["airQuality", "news", "forecastPrecipitation", "currentWeather", "dataNotice", "forecastDaily", "forecastHourly", "forecastPeriodic", "highlights", "historicalComparisons", "weatherChanges", "weatherAlerts", "weatherAlertNotifications"];
 
     for (const handler of [Request, RequestDev]) {
         const request = {
@@ -44,6 +44,22 @@ test("request keeps future datasets while removing a known explicitly disabled d
         };
         const result = await handler(request);
         assert.deepEqual(new URL(result.$request.url).searchParams.get("dataSets").split(","), expected);
+    }
+});
+
+test("request independently restores iOS 27 datasets when Availability is stale", async () => {
+    const input = "airQuality,currentWeather,forecastDaily,forecastHourly,forecastNextHour,news,historicalComparisons,weatherAlerts,weatherChanges";
+    const required = ["dataNotice", "forecastPeriodic", "highlights"];
+
+    for (const handler of [Request, RequestDev]) {
+        const request = {
+            headers: {},
+            method: "GET",
+            url: `https://weatherkit.apple.com/api/v2/weather/en-US/22.5431/114.0579?dataSets=${input}`,
+        };
+        const result = await handler(request);
+        const dataSets = new URL(result.$request.url).searchParams.get("dataSets").split(",");
+        for (const dataSet of required) assert.equal(dataSets.includes(dataSet), true, `${handler.name}: ${dataSet}`);
     }
 });
 

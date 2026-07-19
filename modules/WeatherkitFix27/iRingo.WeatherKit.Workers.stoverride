@@ -14,7 +14,7 @@ author: |-
 homepage: "https://NSRingo.github.io/guide/Weather/weather-kit"
 icon: "https://developer.apple.com/assets/elements/icons/weatherkit/weatherkit-128x128.png"
 category: " iRingo"
-date: "2026-07-19 23:17:50"
+date: "2026-07-19 23:37:12"
 
 rules:
   - DOMAIN,weather-analytics-events.apple.com,REJECT-DROP

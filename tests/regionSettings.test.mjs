@@ -54,13 +54,15 @@ test("published platform artifacts share the full settings and branch bundle", a
         "iRingo.WeatherKit.snippet",
         "iRingo.WeatherKit.stoverride",
     ];
-    const branchBundle = "https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js";
+    const responseBundle = "https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js";
+    const requestBundle = "https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js";
 
     for (const name of artifactNames) {
         const artifact = await readFile(new URL(`../modules/WeatherkitFix27/${name}`, import.meta.url), "utf8");
         assert.match(artifact, /weatherkit\.apple\.com/);
         assert.match(artifact, /api\\?\/v2\\?\/weather|api\/v2\/weather/);
-        assert.equal(artifact.includes(branchBundle), true, name);
+        assert.equal(artifact.includes(responseBundle), true, name);
+        assert.equal(artifact.includes(requestBundle), true, name);
     }
 
     const loon = await readFile(new URL("../modules/WeatherkitFix27/iRingo.WeatherKit.plugin", import.meta.url), "utf8");

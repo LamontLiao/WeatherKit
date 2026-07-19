@@ -103,7 +103,7 @@ export async function Request($request) {
                             }
                             let dataSets = url.searchParams.get("dataSets")?.split(",");
                             if (dataSets) {
-                                dataSets = filterWeatherKitDataSets(dataSets, Settings.DataSets, database.WeatherKit.Settings.DataSets);
+                                dataSets = filterWeatherKitDataSets(dataSets, Settings.DataSets, database.WeatherKit.Settings.DataSets, Configs.Availability.v2);
                                 url.searchParams.set("dataSets", dataSets?.join(","));
                             }
                             break;
