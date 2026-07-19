@@ -1,3 +1,11 @@
+### WeatherkitFix27 / iOS 27
+
+* 恢复天气、未来一小时降水、今日空气质量及昨日对比的全部地区设置和插件参数。
+* Availability 改为能力并集合并，请求仅过滤插件可控制的数据集，透传 iOS 27 新产品。
+* 使用 16 槽位 FlatBuffer 根表覆盖，只替换空气质量、当前天气、日/小时/分钟预报，保留 `forecastPeriodic` 与 `highlights`。
+* 分钟预报改为 10 分钟有效期并支持多段降水；空气质量使用稳定标准别名并保留具体指数；天气替换保护日降水总量和未知枚举。
+* 生成 Loon、Surge、Quantumult X、Stash、Egern 与 Workers 产物，并移除不可访问的私有 proto 子模块依赖。
+
 ### 🆕 New Features
   * 新增基于云函数的 `WeatherKit (Rewrite)` 新模块，面向 `Loon`、`Surge`、`Stash`、`Shadowrocket` 提供新的 Rewrite 版本配置。
 

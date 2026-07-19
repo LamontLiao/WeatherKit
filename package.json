@@ -1,9 +1,11 @@
 {
     "name": "@nsringo/weatherkit",
+    "version": "3.2.0-ios27.1",
     "organizationName": " iRingo",
     "displayName": " iRingo: 🌤 WeatherKit",
-    "description": "iOS 18 & macOS 15 & watchOS 11\n1.解锁全部天气功能\n2.替换空气质量数据\n3.添加下一小时降水数据\n4.添加天气数据",
+    "description": "iOS 18–27 & macOS 15+ & watchOS 11+\n1.解锁全部天气功能\n2.替换空气质量数据\n3.添加下一小时降水数据\n4.添加天气数据\n5.保留 iOS 27 新增天气产品",
     "homepage": "https://NSRingo.github.io/guide/Weather/weather-kit",
+    "scriptBaseURL": "https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27",
     "openUrl": "http://boxjs.com/#/app/iRingo.WeatherKit",
     "icon": "https://developer.apple.com/assets/elements/icons/weatherkit/weatherkit-128x128.png",
     "keywords": [],
@@ -22,12 +24,14 @@
     "license": "Apache-2.0",
     "repository": {
         "type": "git",
-        "url": "https://github.com/NSRingo/WeatherKit.git"
+        "url": "https://github.com/LamontLiao/WeatherKit.git"
     },
     "directories": {
         "example": "example"
     },
+    "type": "module",
     "scripts": {
+        "test": "node --test tests/*.test.mjs",
         "dev": "npm-run-all --parallel build:dev sgmoudle:dev",
         "dev:vercel": "npx vercel dev --listen 8787",
         "dev:wrangler": "npx wrangler dev",
@@ -41,8 +45,10 @@
         "build:full-args": "arguments-builder boxjs -c arguments-builder-full.config.ts",
         "build:args:workers": "arguments-builder build --config arguments-builder.workers.config.ts",
         "build:args": "npm-run-all --serial build:lite-args build:full-args",
+        "build:modules": "npm-run-all --serial build:args build:args:workers",
+        "build:publish-artifacts": "node scripts/copy-weatherkit-fix27-artifacts.mjs",
+        "build:all": "npm-run-all --serial build build:modules build:publish-artifacts",
         "dts": "arguments-builder dts -c arguments-builder-full.config.ts",
-        "submodule": "git submodule update --remote",
         "update": "npm update --save"
     },
     "browserslist": [

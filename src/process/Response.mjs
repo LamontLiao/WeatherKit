@@ -1,5 +1,6 @@
 import { Console, Lodash as _, Storage } from "@nsnanocat/util";
 import database from "../function/database.mjs";
+import matchRegion from "../function/matchRegion.mjs";
 import mergeWeatherKitAvailability from "../function/mergeWeatherKitAvailability.mjs";
 import setENV from "../function/setENV.mjs";
 import * as flatbuffers from "flatbuffers";
@@ -142,9 +143,13 @@ export async function Response($request, $response) {
                                     }),
                                 );
                                 if (replacementDataSets.size) {
-                                    const WeatherData = WeatherKit2.encodeRootOverlay(Builder, ByteBuffer, replacementDataSets, body);
-                                    Builder.finish(WeatherData);
-                                    rawBody = Builder.asUint8Array(); // Of type `Uint8Array`.
+                                    try {
+                                        const WeatherData = WeatherKit2.encodeRootOverlay(Builder, ByteBuffer, replacementDataSets, body);
+                                        Builder.finish(WeatherData);
+                                        rawBody = Builder.asUint8Array(); // Of type `Uint8Array`.
+                                    } catch (error) {
+                                        Console.warn("WeatherKit2.encodeRootOverlay", error);
+                                    }
                                 }
                                 break;
                             }
@@ -179,7 +184,7 @@ export async function Response($request, $response) {
  */
 async function InjectCurrentWeather(currentWeather, Settings, enviroments) {
     Console.info("☑️ InjectCurrentWeather");
-    if (!Settings?.Weather?.Replace?.includes(enviroments.country)) {
+    if (!matchRegion(Settings?.Weather?.Replace, enviroments.country)) {
         Console.warn("InjectCurrentWeather", `Unreplaced country: ${enviroments.country}`);
         Console.info("✅ InjectCurrentWeather");
         return currentWeather;
@@ -215,7 +220,7 @@ async function InjectCurrentWeather(currentWeather, Settings, enviroments) {
  */
 async function InjectForecastDaily(forecastDaily, Settings, enviroments) {
     Console.info("☑️ InjectForecastDaily");
-    if (!Settings?.Weather?.Replace?.includes(enviroments.country)) {
+    if (!matchRegion(Settings?.Weather?.Replace, enviroments.country)) {
         Console.warn("InjectForecastDaily", `Unreplaced country: ${enviroments.country}`);
         Console.info("✅ InjectForecastDaily");
         return forecastDaily;
@@ -253,7 +258,7 @@ async function InjectForecastDaily(forecastDaily, Settings, enviroments) {
  */
 async function InjectForecastHourly(forecastHourly, Settings, enviroments) {
     Console.info("☑️ InjectForecastHourly");
-    if (!Settings?.Weather?.Replace?.includes(enviroments.country)) {
+    if (!matchRegion(Settings?.Weather?.Replace, enviroments.country)) {
         Console.warn("InjectForecastHourly", `Unreplaced country: ${enviroments.country}`);
         Console.info("✅ InjectForecastHourly");
         return forecastHourly;
@@ -289,10 +294,15 @@ async function InjectForecastHourly(forecastHourly, Settings, enviroments) {
  * @param {any} enviroments - 环境变量
  * @returns {Promise<any>} 注入后的下一小时预报数据
  */
-async function InjectForecastNextHour(forecastNextHour, Settings, enviroments) {
+export async function InjectForecastNextHour(forecastNextHour, Settings, enviroments) {
     Console.info("☑️ InjectForecastNextHour");
 
-    if (forecastNextHour) {
+    if (Settings?.NextHour?.Provider === "WeatherKit" || !matchRegion(Settings?.NextHour?.Fill, enviroments.country)) {
+        Console.info("✅ InjectForecastNextHour");
+        return forecastNextHour;
+    }
+
+    if (hasUsableAndFreshForecastNextHour(forecastNextHour)) {
         Console.info("✅ InjectForecastNextHour");
         return forecastNextHour;
     }
@@ -311,12 +321,26 @@ async function InjectForecastNextHour(forecastNextHour, Settings, enviroments) {
             break;
         }
     }
-    if (newForecastNextHour?.metadata) {
+    if (hasUsableAndFreshForecastNextHour(newForecastNextHour)) {
         newForecastNextHour.metadata = { ...forecastNextHour?.metadata, ...newForecastNextHour.metadata };
         forecastNextHour = { ...forecastNextHour, ...newForecastNextHour };
     }
     Console.info("✅ InjectForecastNextHour");
     return forecastNextHour;
+}
+
+export function hasUsableAndFreshForecastNextHour(data, now = Math.trunc(Date.now() / 1000)) {
+    if (!data?.metadata || data.metadata.temporarilyUnavailable || !Array.isArray(data?.minutes) || data.minutes.length === 0) return false;
+
+    const nowSeconds = Number(now);
+    const expireTime = Number(data.metadata.expireTime);
+    if (!Number.isFinite(nowSeconds) || !Number.isFinite(expireTime) || expireTime <= nowSeconds) return false;
+
+    return data.minutes.some(minute => {
+        const startTime = Number(minute?.startTime);
+        const precipitationIntensity = Number(minute?.precipitationIntensity);
+        return Number.isFinite(startTime) && startTime >= nowSeconds - 60 && Number.isFinite(precipitationIntensity);
+    });
 }
 
 /**
@@ -327,15 +351,16 @@ async function InjectForecastNextHour(forecastNextHour, Settings, enviroments) {
  * @param {any} enviroments - 各数据源实例与定位信息
  * @returns {Promise<any>} 合并后的空气质量对象
  */
-async function InjectAirQuality(airQuality, Settings, Caches, enviroments) {
+export async function InjectAirQuality(airQuality, Settings, Caches, enviroments) {
     // Step1. 修复污染物单位，并将 Apple AQ scale 归一为不绑定版本的稳定标识
     airQuality = AirQuality.FixPollutantsUnits(airQuality);
     airQuality = AirQuality.NormalizeScaleIdentifier(airQuality);
 
     // Step2. 判断原始污染物是否为空，并在需要时注入污染物数据
     const isPollutantEmpty = !Array.isArray(airQuality?.pollutants) || airQuality.pollutants.length === 0;
-    const injectedPollutants = isPollutantEmpty ? await InjectPollutants(Settings, enviroments) : airQuality;
-    const needPollutants = isPollutantEmpty && !!(injectedPollutants?.metadata && !injectedPollutants.metadata.temporarilyUnavailable);
+    const isCurrentFill = matchRegion(Settings?.AirQuality?.Current?.Fill, enviroments.country);
+    const injectedPollutants = isPollutantEmpty && isCurrentFill ? await InjectPollutants(Settings, enviroments) : airQuality;
+    const needPollutants = isCurrentFill && isPollutantEmpty && !!(injectedPollutants?.metadata && !injectedPollutants.metadata.temporarilyUnavailable);
 
     // Step3. 根据污染物补齐情况与替换配置，决定是否注入 AQI 指数
     const needInjectIndex = needPollutants || Settings?.AirQuality?.Current?.Index?.Replace?.includes(AirQuality.GetNameFromScale(airQuality?.scale));
@@ -344,7 +369,8 @@ async function InjectAirQuality(airQuality, Settings, Caches, enviroments) {
     // Step4. 计算昨日对比是否需要重算；若未知则注入昨日对比结果
     const weatherKitComparison = airQuality?.previousDayComparison ?? AirQuality.Config.CompareCategoryIndexes.UNKNOWN;
     const previousDayComparison = needInjectIndex && Settings?.AirQuality?.Comparison?.ReplaceWhenCurrentChange ? AirQuality.Config.CompareCategoryIndexes.UNKNOWN : weatherKitComparison;
-    const needInjectComparison = previousDayComparison === AirQuality.Config.CompareCategoryIndexes.UNKNOWN;
+    const isComparisonFill = matchRegion(Settings?.AirQuality?.Comparison?.Fill, enviroments.country);
+    const needInjectComparison = isComparisonFill && previousDayComparison === AirQuality.Config.CompareCategoryIndexes.UNKNOWN;
     const currentIndexProvider = needInjectIndex ? Settings?.AirQuality?.Current?.Index?.Provider : "WeatherKit";
     const injectedComparison = needInjectComparison ? await InjectComparison(injectedIndex, currentIndexProvider, Settings, Caches, enviroments) : { ...injectedIndex, previousDayComparison: weatherKitComparison };
 
@@ -361,14 +387,18 @@ async function InjectAirQuality(airQuality, Settings, Caches, enviroments) {
     ];
 
     // Step6. 选取首个有效 provider，生成统一 logo
-    const firstValidProvider = weatherKitMetadata?.providerName || pollutantMetadata?.providerName || indexMetadata?.providerName || comparisonMetadata?.providerName;
+    const firstValidMetadata = [weatherKitMetadata, pollutantMetadata, indexMetadata, comparisonMetadata].find(metadata => metadata?.providerName && !metadata.temporarilyUnavailable);
+    const firstValidProvider = firstValidMetadata?.providerName;
+    const hasUsableInjectedAirQuality = !!(injectedIndex?.metadata && !injectedIndex.metadata.temporarilyUnavailable);
+    const baseMetadata = needPollutants && pollutantMetadata && !pollutantMetadata.temporarilyUnavailable ? pollutantMetadata : (airQuality?.metadata ?? pollutantMetadata);
 
     // Step7. 合并输出：优先使用可用注入结果，并统一 metadata / pollutants / previousDayComparison
     airQuality = {
         ...airQuality,
         ...(injectedIndex?.metadata && !injectedIndex.metadata.temporarilyUnavailable ? injectedIndex : {}),
         metadata: {
-            ...(airQuality?.metadata ? airQuality.metadata : injectedPollutants?.metadata),
+            ...baseMetadata,
+            ...(hasUsableInjectedAirQuality ? { temporarilyUnavailable: false } : {}),
             providerName: providers.join("\n"),
             ...(firstValidProvider ? { providerLogo: providerNameToLogo(firstValidProvider, "v2") } : {}),
         },
