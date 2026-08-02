@@ -1,5 +1,15 @@
 import { defineConfig } from "@iringo/arguments-builder";
+
+const endpoint = {
+	key: "endpoint",
+	name: "[重写] 服务端点",
+	defaultValue: "weatherkit.pages.dev",
+	type: "string" as const,
+	description: "Cloudflare Pages/Workers 或兼容反向代理的主机名（不含协议与路径）。",
+};
+
 export default defineConfig({
+	args: [endpoint],
 	output: {
 		surge: {
 			path: "./dist/iRingo.WeatherKit.Workers.sgmodule",
@@ -22,6 +32,9 @@ export default defineConfig({
 				path: "./dist/iRingo.WeatherKit.Workers.stoverride",
 				template: "./template/stash.workers.handlebars",
 			},
-		]
+		],
+		boxjsSettings: {
+			path: "./dist/iRingo.WeatherKit.Workers.boxjs.json",
+		},
 	},
 });

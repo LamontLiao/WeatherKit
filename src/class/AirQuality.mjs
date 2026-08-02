@@ -67,12 +67,14 @@ export default class AirQuality {
         Console.info("☑️ CompareCategoryIndexes", `todayCategoryIndex: ${todayCategoryIndex}`, `yesterdayCategoryIndex: ${yesterdayCategoryIndex}`);
 
         const { UNKNOWN, SAME, WORSE, BETTER } = AirQuality.Config.CompareCategoryIndexes;
-        const diff = Number(todayCategoryIndex) - Number(yesterdayCategoryIndex);
+        const today = Number(todayCategoryIndex);
+        const yesterday = Number(yesterdayCategoryIndex);
 
-        if (Number.isNaN(diff)) {
+        if (![today, yesterday].every(categoryIndex => Number.isFinite(categoryIndex) && categoryIndex > 0)) {
             Console.error("CompareCategoryIndexes", "categoryIndex无效");
             return UNKNOWN;
         } else {
+            const diff = today - yesterday;
             if (diff === 0) {
                 Console.info("✅ CompareCategoryIndexes");
                 return SAME;
@@ -325,17 +327,38 @@ export default class AirQuality {
         }
     }
 
-    static ToWeatherKitScale = ({ name, version }) => `${name}.${version}`;
+    // 计算器内部使用稳定的无版本标识，写回 WeatherKit 时再跟随 Apple 响应的版本。
+    static ToWeatherKitScale = ({ name, version }) => (version ? `${name}.${version}` : name);
+
+    /**
+     * 保留注入后的标准名称，同时采用当前 Apple 响应携带的标准版本。
+     *
+     * iOS 27 会用完整 scale id 查找空气质量标准元数据。若写回裸标识或旧版本，
+     * 即使 index/categoryIndex 已存在，天气 App 仍可能隐藏具体指数。
+     */
+    static MatchWeatherKitScaleVersion(scale, referenceScale) {
+        if (typeof scale !== "string") return scale;
+
+        const scaleName = AirQuality.GetNameFromScale(scale);
+        const referenceVersion = typeof referenceScale === "string" ? referenceScale.match(/\.(\d+)$/)?.[1] : undefined;
+        return referenceVersion ? `${scaleName}.${referenceVersion}` : scale;
+    }
+
+    /**
+     * 将 AQ scale 的名称与指定 Apple 参考版本对齐。
+     * 没有参考版本时保持原值，绝不能从真实响应中删除版本后缀。
+     */
+    static NormalizeScaleIdentifier(airQuality, referenceScale) {
+        if (!airQuality?.scale) return airQuality;
+        const matchedScale = AirQuality.MatchWeatherKitScaleVersion(airQuality.scale, referenceScale);
+        return airQuality.scale === matchedScale ? airQuality : { ...airQuality, scale: matchedScale };
+    }
+
     static GetNameFromScale(scale) {
         Console.info("☑️ GetNameFromScale", `scale: ${scale}`);
 
-        const lastDotIndex = scale?.lastIndexOf(".");
-        if (!scale || lastDotIndex === -1) {
-            Console.error("GetNameFromScale", `无法找到${scale}的版本号`);
-            return scale;
-        }
-
-        const scaleName = scale.substring(0, lastDotIndex);
+        // EU.EAQI 本身包含点号，只移除末尾纯数字版本，不能按最后一个点无条件截断。
+        const scaleName = scale?.replace(/\.\d+$/, "");
         Console.info("✅ GetNameFromScale", `scaleName: ${scaleName}`);
         return scaleName;
     }
@@ -570,7 +593,7 @@ export default class AirQuality {
      * - amount 的物理单位由每个元素的 units 字段决定（如 µg/m³、mg/m³、ppb、ppm）。
      *
      * @param {{
-     *   weatherKitScale: {name: string, version: string, maxIndex?: number},
+     *   weatherKitScale: {name: string, version?: string, maxIndex?: number},
      *   pollutants: Record<string, {units: string, stpConversionFactor?: number, ranges: any}>,
      *   categories: {significantIndex: number, ranges: Array<{categoryIndex: number, indexes: number[]}>}
      * }} scale
@@ -642,7 +665,6 @@ export default class AirQuality {
             UBA: {
                 weatherKitScale: {
                     name: "UBA",
-                    version: "2414",
                 },
                 // Indexes below for calculation only, not for display
                 categories: {
@@ -740,7 +762,6 @@ export default class AirQuality {
             EU_EAQI: {
                 weatherKitScale: {
                     name: "EU.EAQI",
-                    version: "2414",
                     maxIndex: 60,
                 },
                 // Indexes below for calculation only, not for display
@@ -845,7 +866,6 @@ export default class AirQuality {
             HJ6332012: {
                 weatherKitScale: {
                     name: "HJ6332012",
-                    version: "2414",
                 },
                 categories: {
                     significantIndex: 3, // 轻度污染
@@ -1035,7 +1055,6 @@ export default class AirQuality {
             HJ6332025_DRAFT: {
                 weatherKitScale: {
                     name: "HJ6332012",
-                    version: "2414",
                 },
                 categories: {
                     significantIndex: 3, // 轻度污染
@@ -1231,7 +1250,6 @@ export default class AirQuality {
             EPA_NowCast: {
                 weatherKitScale: {
                     name: "EPA_NowCast",
-                    version: "2414",
                 },
                 categories: {
                     significantIndex: 3, // Unhealthy for Sensitive Groups
@@ -1388,7 +1406,6 @@ export default class AirQuality {
             WAQI_InstantCast_US: {
                 weatherKitScale: {
                     name: "EPA_NowCast",
-                    version: "2414",
                     maxIndex: 500,
                 },
                 categories: {
@@ -1517,7 +1534,6 @@ export default class AirQuality {
             WAQI_InstantCast_CN: {
                 weatherKitScale: {
                     name: "HJ6332012",
-                    version: "2414",
                     maxIndex: 500,
                 },
                 categories: {
@@ -1645,7 +1661,6 @@ export default class AirQuality {
             WAQI_InstantCast_CN_25_DRAFT: {
                 weatherKitScale: {
                     name: "HJ6332012",
-                    version: "2414",
                     maxIndex: 500,
                 },
                 categories: {

@@ -1,12 +1,16 @@
 export default {
     WeatherKit: {
         Settings: {
-            DataSets: ["airQuality", "currentWeather", "forecastDaily", "forecastHourly", "forecastNextHour", "locationInfo", "news", "historicalComparisons", "weatherAlerts", "weatherChanges"],
-            Weather: { Replace: ["CN"], Provider: "ColorfulClouds" },
-            NextHour: { Provider: "ColorfulClouds" },
+            // 只有插件会修改的产品允许被配置关闭；其余 Apple 数据集必须始终透传。
+            DataSets: ["airQuality", "currentWeather", "forecastDaily", "forecastHourly", "forecastNextHour"],
+            Weather: { Replace: "CN", Provider: "ColorfulClouds" },
+            NextHour: {
+                Fill: "CN|HK|MO|TW|IT|LT|MT|FR|SK|NO|BY|IS|CZ|SI|DE|ES|UA|DK|PL|FI|SE|HR|RU|RO|PT|EE|RS|AT|GR|HU|FJ|GU|MH|NC|TR|BH|SA|ID|IR|SG|OM|PH|IN|KH|CY|MY|VN|KW|TH|KR|KP|CA|BS|KY|MX|PA|MQ|CU|BM|PR|CW|GP|NI|BR|GF|CO|GY|PY|AR",
+                Provider: "ColorfulClouds",
+            },
             AirQuality: {
-                Current: { Pollutants: { Provider: "ColorfulClouds", Units: { Replace: [], Mode: "Scale" } }, Index: { Replace: ["HJ6332012"], Provider: "Calculate", ForceCNPrimaryPollutants: true } },
-                Comparison: { ReplaceWhenCurrentChange: false, Yesterday: { PollutantsProvider: "QWeather", IndexProvider: "ColorfulCloudsUS" } },
+                Current: { Fill: "CN|HK|MO", Pollutants: { Provider: "ColorfulClouds", Units: { Replace: [], Mode: "Scale" } }, Index: { Replace: ["HJ6332012"], Provider: "Calculate", ForceCNPrimaryPollutants: true } },
+                Comparison: { Fill: "CN|HK|MO", ReplaceWhenCurrentChange: false, Yesterday: { PollutantsProvider: "QWeather", IndexProvider: "ColorfulCloudsUS" } },
                 Calculate: { Algorithm: "EU_EAQI", AllowOverRange: true },
             },
             API: { WAQI: { Token: null }, QWeather: { Token: null, Host: "devapi.qweather.com" }, ColorfulClouds: { Token: null } },
@@ -14,7 +18,7 @@ export default {
         Configs: {
             Availability: {
                 v1: ["currentWeather", "dailyForecast", "hourlyForecast", "minuteForecast", "weatherAlerts"],
-                v2: ["airQuality", "currentWeather", "forecastDaily", "forecastHourly", "forecastPeriodic", "historicalComparisons", "weatherChanges", "forecastNextHour", "weatherAlerts", "weatherAlertNotifications", "news"],
+                v2: ["airQuality", "currentWeather", "dataNotice", "forecastDaily", "forecastHourly", "forecastPeriodic", "highlights", "historicalComparisons", "weatherChanges", "forecastNextHour", "weatherAlerts", "weatherAlertNotifications", "news"],
             },
         },
     },

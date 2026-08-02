@@ -1,0 +1,61 @@
+name: ' iRingo: 🌤 WeatherKit (Rewrite)'
+description: |-
+  iOS 18–27 & macOS 15+ & watchOS 11+
+  1.解锁全部天气功能
+  2.替换空气质量数据
+  3.添加下一小时降水数据
+  4.添加天气数据
+  5.保留 iOS 27 新增天气产品
+compat_arguments:
+  endpoint: weatherkit.pages.dev
+compat_arguments_desc: |
+  endpoint: [重写] 服务端点
+  Cloudflare Pages/Workers 或兼容反向代理的主机名（不含协议与路径）。
+open_url: http://boxjs.com/#/app/iRingo.WeatherKit
+author: VirgilClyne[https://github.com/VirgilClyne],WordlessEcho[https://github.com/WordlessEcho],001[https://github.com/001ProMax]
+homepage: https://NSRingo.github.io/guide/Weather/weather-kit
+icon: https://developer.apple.com/assets/elements/icons/weatherkit/weatherkit-128x128.png
+dns: {}
+rules:
+- domain:
+    match: weather-analytics-events.apple.com
+    policy: REJECT-DROP
+- domain_suffix:
+    match: tthr.apple.com
+    policy: REJECT-DROP
+- domain:
+    match: tether.edge.apple
+    policy: REJECT-DROP
+- and:
+    match:
+    - or:
+        match:
+        - asn:
+            match: '714'
+            no_resolve: true
+        - asn:
+            match: '6185'
+            no_resolve: true
+    - protocol:
+        match: QUIC
+    policy: REJECT-DROP
+url_rewrites:
+- match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/airQualityScale\/
+  location: https://{{{endpoint}}}/weatherkit.apple.com/api/v1/airQualityScale/
+- match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/availability\/
+  location: https://{{{endpoint}}}/weatherkit.apple.com/api/v1/availability/
+- match: ^https?:\/\/weatherkit\.apple\.com\/api\/v2\/weather\/
+  location: https://{{{endpoint}}}/weatherkit.apple.com/api/v2/weather/
+- match: ^https?:\/\/www\.qweather\.com\/\/?severe-weather\/([^/?#]+)\.html\?from=AppleWeatherService$
+  location: https://weatherkit.apple.com/alertDetails/index.html?ids=$1&lang=zh-CN&party=qweather
+  status_code: 302
+- match: ^https?:\/\/www\.qweather\.com\/en\/severe-weather\/([^/?#]+)\.html\?from=AppleWeatherService$
+  location: https://weatherkit.apple.com/alertDetails/index.html?ids=$1&lang=en-US&party=qweather
+  status_code: 302
+- match: ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/weatherAlerts(\?[^#]*&ids=[^&#]*-[0-9]{9}(?:&[^#]*)?)$
+  location: https://{{{endpoint}}}/weatherkit.apple.com/api/v1/weatherAlerts$1
+mitm:
+  hostnames:
+    includes:
+    - weatherkit.apple.com
+    - www.qweather.com

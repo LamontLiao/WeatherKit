@@ -173,7 +173,7 @@ export default class ColorfulClouds {
                             const timeStamp = (Date.now() / 1000) | 0;
                             const metadata = {
                                 attributionUrl: "https://www.caiyunapp.com/h5",
-                                expireTime: timeStamp + 60 * 60,
+                                expireTime: timeStamp + ForecastNextHour.ExpirationInterval,
                                 language: "zh-CN", // `${this.language}-${this.country}`, // body?.lang,
                                 latitude: body?.location?.[0],
                                 longitude: body?.location?.[1],
@@ -306,14 +306,15 @@ export default class ColorfulClouds {
                                 forecastDaily.days.push({
                                     forecastStart: timeStamp,
                                     forecastEnd: timeStamp + 24 * 3600, // 24 hours
-                                    conditionCode: Weather.ConvertWeatherCode(body?.result?.daily?.skycon?.[i]?.value),
+                                    ...Weather.ConvertWeatherCodeField(body?.result?.daily?.skycon?.[i]?.value),
                                     humidityMax: Math.round(body?.result?.daily?.humidity?.[i]?.max * 100),
                                     humidityMin: Math.round(body?.result?.daily?.humidity?.[i]?.min * 100),
                                     // maxUvIndex: Weather.ConvertDSWRF(body?.result?.daily?.dswrf?.[i]?.max), // ConvertDSWRF 转换不准确
                                     // moonPhase: "", // Not given
                                     // moonrise: body?.result?.daily?.astro?.[i].sunset.time, // Not given
                                     // moonset: body?.result?.daily?.astro?.[i].sunrise.time, // Not given
-                                    precipitationAmount: body?.result?.daily?.precipitation?.[i]?.avg,
+                                    // Caiyun `avg` is an average rate (mm/h), not WeatherKit's accumulated amount (mm).
+                                    // Leave both amount fields absent so the merge keeps Apple's paired scalar/by-type totals.
                                     // precipitationAmountByType: [], // Not given
                                     precipitationChance: body?.result?.daily?.precipitation?.[i]?.probability,
                                     // precipitationType: "", // Not given
@@ -344,10 +345,10 @@ export default class ColorfulClouds {
                                         // cloudCoverHighAltPct: 0, // Not given
                                         // cloudCoverLowAltPct: 0, // Not given
                                         // cloudCoverMidAltPct: 0, // Not given
-                                        conditionCode: Weather.ConvertWeatherCode(body?.result?.daily?.skycon_08h_20h?.[i]?.value),
+                                        ...Weather.ConvertWeatherCodeField(body?.result?.daily?.skycon_08h_20h?.[i]?.value),
                                         // humidityMax: Math.round(body?.result?.daily?.humidity?.[i]?.max * 100), // Not given
                                         // humidityMin: Math.round(body?.result?.daily?.humidity?.[i]?.min * 100), // Not given
-                                        precipitationAmount: body?.result?.daily?.precipitation_08h_20h?.[i]?.avg,
+                                        // Caiyun `avg` is mm/h and cannot replace WeatherKit's accumulated precipitation total.
                                         // precipitationAmountByType: [], // Not given
                                         precipitationChance: body?.result?.daily?.precipitation_08h_20h?.[i]?.probability,
                                         // precipitationType: "", // Not given
@@ -368,10 +369,10 @@ export default class ColorfulClouds {
                                         // cloudCoverHighAltPct: 0, // Not given
                                         // cloudCoverLowAltPct: 0, // Not given
                                         // cloudCoverMidAltPct: 0, // Not given
-                                        conditionCode: Weather.ConvertWeatherCode(body?.result?.daily?.skycon_20h_32h?.[i]?.value),
+                                        ...Weather.ConvertWeatherCodeField(body?.result?.daily?.skycon_20h_32h?.[i]?.value),
                                         // humidityMax: Math.round(body?.result?.daily?.humidity?.[i]?.max * 100), // Not given
                                         // humidityMin: Math.round(body?.result?.daily?.humidity?.[i]?.min * 100), // Not given
-                                        precipitationAmount: body?.result?.daily?.precipitation_20h_32h?.[i]?.avg,
+                                        // Caiyun `avg` is mm/h and cannot replace WeatherKit's accumulated precipitation total.
                                         // precipitationAmountByType: [], // Not given
                                         precipitationChance: body?.result?.daily?.precipitation_20h_32h?.[i]?.probability,
                                         // precipitationType: "", // Not given
@@ -592,7 +593,7 @@ export default class ColorfulClouds {
         return {
             metadata: this.#Metadata(realtime.result.server_time, realtime.location),
             cloudCover: Math.round(realtime.result.realtime.cloudrate * 100),
-            conditionCode: Weather.ConvertWeatherCode(realtime.result.realtime.skycon),
+            ...Weather.ConvertWeatherCodeField(realtime.result.realtime.skycon),
             humidity: Math.round(realtime.result.realtime.humidity * 100),
             // uvIndex: Weather.ConvertDSWRF(body?.result?.realtime?.dswrf), // ConvertDSWRF 转换不准确
             perceivedPrecipitationIntensity: realtime.result.realtime.precipitation.local.intensity,
@@ -664,7 +665,7 @@ export default class ColorfulClouds {
                 // cloudCoverHighAltPct: 0, // Not given
                 // cloudCoverLowAltPct: 0, // Not given
                 // cloudCoverMidAltPct: 0, // Not given
-                conditionCode: Weather.ConvertWeatherCode(hourly.result.hourly.skycon[i].value),
+                ...Weather.ConvertWeatherCodeField(hourly.result.hourly.skycon[i].value),
                 // daylight: false, // Not given
                 forecastStart: (new Date(hourly.result.hourly.skycon[i].datetime).getTime() / 1000) | 0,
                 humidity: Math.round(hourly.result.hourly.humidity[i].value * 100),

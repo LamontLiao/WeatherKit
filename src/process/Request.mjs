@@ -1,5 +1,7 @@
 import { Console, Lodash as _, Storage } from "@nsnanocat/util";
+import WeatherAlerts from "../class/WeatherAlerts.mjs";
 import database from "../function/database.mjs";
+import filterWeatherKitDataSets from "../function/filterWeatherKitDataSets.mjs";
 import setENV from "../function/setENV.mjs";
 /***************** Processing *****************/
 export async function Request($request) {
@@ -87,6 +89,34 @@ export async function Request($request) {
                 case "weatherkit.apple.com":
                     // 路径判断
                     switch (true) {
+                        case url.pathname === "/api/v1/weatherAlerts": {
+                            const identifier = url.searchParams.get("ids");
+                            if (!WeatherAlerts.IsQWeatherIdentifier(identifier)) break;
+                            Console.info("☑️ WeatherAlerts.GetQWeather", `ids: ${identifier}`);
+                            let body;
+                            try {
+                                body = await WeatherAlerts.GetQWeather(url, $request.headers);
+                            } catch (error) {
+                                Console.error("WeatherAlerts.GetQWeather", error?.stack ?? error?.message ?? String(error));
+                                body = [];
+                            }
+                            if (!Array.isArray(body)) {
+                                Console.warn("WeatherAlerts.GetQWeather", `unexpectedBodyType: ${typeof body}`);
+                                body = [];
+                            }
+                            Console.info("✅ WeatherAlerts.GetQWeather", `alerts: ${body.length}`, "status: 200");
+                            $response = {
+                                status: 200,
+                                statusCode: 200,
+                                headers: {
+                                    "Access-Control-Allow-Origin": "*",
+                                    "Cache-Control": "max-age=0",
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(body),
+                            };
+                            break;
+                        }
                         case url.pathname.startsWith("/api/v2/weather/"): {
                             // 解决 macOS 天气 app 如果使用国际版 Maps 时，country 丢失不显示未来一小时降水的问题
                             switch (true) {
@@ -101,11 +131,14 @@ export async function Request($request) {
                             }
                             let dataSets = url.searchParams.get("dataSets")?.split(",");
                             if (dataSets) {
-                                dataSets = dataSets?.filter(dataSet => Settings.DataSets?.includes(dataSet));
+                                dataSets = filterWeatherKitDataSets(dataSets, Settings.DataSets, database.WeatherKit.Settings.DataSets, Configs.Availability.v2);
                                 url.searchParams.set("dataSets", dataSets?.join(","));
                             }
                             break;
                         }
+                        case url.pathname.startsWith("/api/v1/airQualityScale/"):
+                            $request.headers["Cache-Control"] = "no-cache";
+                            break;
                     }
                     break;
             }
