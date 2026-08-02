@@ -6,7 +6,12 @@ globalThis.$environment = { "surge-version": "test" };
 globalThis.$persistentStore = { read: () => null, write: () => true };
 globalThis.$argument = { LogLevel: "OFF", Storage: "database" };
 
-const [{ default: WeatherKit2 }, { Weather }, { Response }] = await Promise.all([import("../src/class/WeatherKit2.mjs"), import("../src/proto/apple/wk2.js"), import("../src/process/Response.mjs")]);
+const [{ default: WeatherKit2Root }, { default: WeatherKit2 }, { Weather }, { Response }] = await Promise.all([
+    import("../src/class/WeatherKit2Root.mjs"),
+    import("../src/class/WeatherKit2.mjs"),
+    import("../src/proto/apple/wk2.js"),
+    import("../src/process/Response.mjs"),
+]);
 
 const injectableDataSets = ["airQuality", "currentWeather", "forecastDaily", "forecastHourly", "forecastNextHour"];
 const unrelatedKnownDataSets = ["news", "weatherAlerts", "weatherChanges", "historicalComparisons", "locationInfo"];
@@ -30,7 +35,7 @@ test("selected root decode never opens unrelated known products", () => {
     }
 
     try {
-        const decoded = WeatherKit2.decode(new ByteBuffer(sourceBytes), [...injectableDataSets, ...unrelatedKnownDataSets]);
+        const decoded = WeatherKit2Root.decode(new ByteBuffer(sourceBytes), injectableDataSets);
         assert.deepEqual(Object.keys(decoded), injectableDataSets);
         for (const dataSet of injectableDataSets) assert.deepEqual(decoded[dataSet], allDecoded[dataSet]);
     } finally {

@@ -4,7 +4,7 @@ import matchRegion from "../function/matchRegion.mjs";
 import mergeWeatherKitAvailability, { refreshWeatherKitAvailabilityCache } from "../function/mergeWeatherKitAvailability.mjs";
 import setENV from "../function/setENV.mjs";
 import * as flatbuffers from "flatbuffers";
-import WeatherKit2 from "../class/WeatherKit2.mjs";
+import WeatherKit2 from "../class/WeatherKit2Root.mjs";
 import parseWeatherKitURL from "../function/parseWeatherKitURL.mjs";
 import providerNameToLogo from "../function/providerNameToLogo.mjs";
 import resolveWeatherKitAirQualityScale from "../function/resolveWeatherKitAirQualityScale.mjs";
@@ -102,14 +102,15 @@ export async function Response($request, $response) {
                 case "application/vnd.apple.flatbuffer": {
                     // 解析FlatBuffer
                     const ByteBuffer = new flatbuffers.ByteBuffer(rawBody);
-                    const Builder = new flatbuffers.Builder();
                     // 主机判断
                     switch (url.hostname) {
                         case "weatherkit.apple.com":
                             // 路径判断
                             if (url.pathname.startsWith("/api/v2/weather/")) {
                                 const parameters = parseWeatherKitURL(url);
-                                body = WeatherKit2.decode(ByteBuffer, parameters.dataSets);
+                                // 只解码本插件会修改的本地 schema 产品；其余已知或 iOS 27 新增槽位保持二进制透传。
+                                const injectableDataSets = parameters.dataSets.filter(dataSet => database.WeatherKit.Settings.DataSets.includes(dataSet));
+                                body = WeatherKit2.decode(ByteBuffer, injectableDataSets);
                                 const matchEnum = new MatchEnum(body);
                                 if (Settings?.LogLevel === "DEBUG" || Settings?.LogLevel === "ALL") {
                                     await matchEnum.init();
@@ -125,7 +126,7 @@ export async function Response($request, $response) {
                                 };
 
                                 await Promise.all(
-                                    parameters.dataSets.map(async dataSet => {
+                                    injectableDataSets.map(async dataSet => {
                                         switch (dataSet) {
                                             case "airQuality": {
                                                 if (Settings?.LogLevel === "DEBUG" || Settings?.LogLevel === "ALL") {
@@ -218,11 +219,10 @@ export async function Response($request, $response) {
                                 );
                                 if (replacementDataSets.size) {
                                     try {
-                                        const WeatherData = WeatherKit2.encodeRootOverlay(Builder, ByteBuffer, replacementDataSets, body);
-                                        Builder.finish(WeatherData);
-                                        rawBody = Builder.asUint8Array(); // Of type `Uint8Array`.
+                                        const patch = Object.fromEntries([...replacementDataSets].map(dataSet => [dataSet, body[dataSet]]));
+                                        rawBody = WeatherKit2.encode(ByteBuffer, patch);
                                     } catch (error) {
-                                        Console.warn("WeatherKit2.encodeRootOverlay", error);
+                                        Console.warn("WeatherKit2.encode", error);
                                     }
                                 }
                                 break;

@@ -6,16 +6,24 @@ import { Response } from "./process/Response.mjs";
 /***************** Processing *****************/
 
 export default new Hono()
+    .get("/", c => c.text("OK"))
     .all("/:rest{.*}", async c => {
         let $request = await HonoWorkerAdapter.buildRequest(c.req);
         let $response;
         ({ $request, $response } = await Request($request));
-        if ($response) return HonoWorkerAdapter.writeResponse(c, $response);
-        $response = await fetch($request);
-        $response = await Response($request, $response);
+        switch (typeof $response) {
+            case "undefined":
+                $response = await fetch($request);
+                $response = await Response($request, $response);
+                break;
+            case "object":
+                break;
+            default:
+                throw new TypeError(`Invalid response type: ${typeof $response}`);
+        }
         return HonoWorkerAdapter.writeResponse(c, $response);
     })
     .onError((e, c) => {
-        console.error(`${e}`);
-        return c.body(`${e}`, 500);
+        console.error(e);
+        return c.body(e.message, 500);
     });

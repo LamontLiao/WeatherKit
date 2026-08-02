@@ -5,8 +5,8 @@
 #!homepage = https://NSRingo.github.io/guide/Weather/weather-kit
 #!icon = https://developer.apple.com/assets/elements/icons/weatherkit/weatherkit-128x128.png
 #!category =  iRingo
-#!date = 2026-07-20 00:33:02
-#!version = 3.2.0-ios27.6
+#!date = 2026-08-02 17:23:14
+#!version = 3.2.0-ios27.7
 
 #[filter_local]
 host, weather-analytics-events.apple.com, reject
@@ -16,6 +16,8 @@ host, tether.edge.apple, reject
 #[rewrite_local]
 # 🌤 WeatherKit.api.v1.airQualityScale.request
 ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/airQualityScale\/ url script-request-header https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js
+# 🌤 WeatherKit.api.v1.weatherAlerts.request
+^https?:\/\/weatherkit\.apple\.com\/api\/v1\/weatherAlerts\?[^#]*&ids=[^&#]*-[0-9]{9}(?:&|$) url script-request-header https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js
 # 🌤 WeatherKit.api.v2.weather.request
 ^https?:\/\/weatherkit\.apple\.com\/api\/v2\/weather\/ url script-request-header https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/request.bundle.js
 # 🌤 WeatherKit.api.v1.airQualityScale.response
@@ -24,6 +26,9 @@ host, tether.edge.apple, reject
 ^https?:\/\/weatherkit\.apple\.com\/api\/v1\/availability\/ url script-response-body https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js
 # 🌤 WeatherKit.api.v2.weather.response
 ^https?:\/\/weatherkit\.apple\.com\/api\/v2\/weather\/ url script-response-body https://raw.githubusercontent.com/LamontLiao/WeatherKit/WeatherkitFix27/modules/WeatherkitFix27/response.bundle.js
+# 🌤 WeatherKit.alertDetails.index.response
+^https?:\/\/www\.qweather\.com\/\/?severe-weather\/([^/?#]+)\.html\?from=AppleWeatherService$ url 302 https://weatherkit.apple.com/alertDetails/index.html?ids=$1&lang=zh-CN&party=qweather
+^https?:\/\/www\.qweather\.com\/en\/severe-weather\/([^/?#]+)\.html\?from=AppleWeatherService$ url 302 https://weatherkit.apple.com/alertDetails/index.html?ids=$1&lang=en-US&party=qweather
 
 #[mitm]
-hostname = weatherkit.apple.com
+hostname = weatherkit.apple.com, www.qweather.com

@@ -13,7 +13,8 @@ globalThis.$httpClient = {
             else if (request.url.includes("/minutely")) body = colorfulMinutely;
             else if (request.url.includes("/hourly")) body = colorfulHourly;
             else if (request.url.includes("/daily")) body = colorfulDaily;
-        } else if (request.url.includes("/v7/weather/24h")) body = qWeatherHourly;
+        } else if (request.url.includes("/v7/minutely/5m")) body = qWeatherMinutely;
+        else if (request.url.includes("/v7/weather/24h")) body = qWeatherHourly;
         else if (request.url.includes("/v7/weather/10d")) body = qWeatherDaily;
 
         if (!body) throw new Error(`unexpected request: ${request.url}`);
@@ -51,6 +52,15 @@ test("QWeather serializes Hourly and Daily reportedTime as epoch seconds", async
     assert.equal(hourly.metadata.reportedTime, expected);
     assert.equal(daily.metadata.reportedTime, expected);
     assert.equal(roundTrip("forecastHourly", hourly).metadata.reportedTime, expected);
+});
+
+test("QWeather minute forecast uses provider updateTime as reportedTime", async () => {
+    const provider = new QWeather(parameters, "token");
+    const nextHour = await provider.Minutely();
+    const expected = Math.trunc(Date.parse(qWeatherMinutely.updateTime) / 1000);
+
+    assert.equal(nextHour.metadata.reportedTime, expected);
+    assert.equal(roundTrip("forecastNextHour", nextHour).metadata.reportedTime, expected);
 });
 
 function roundTrip(dataSet, data) {
@@ -174,4 +184,17 @@ const qWeatherDaily = {
     ],
     fxLink: "https://www.qweather.com/",
     updateTime: qWeatherHourly.updateTime,
+};
+
+const qWeatherMinutely = {
+    code: "200",
+    fxLink: "https://www.qweather.com/",
+    minutely: [
+        {
+            fxTime: "2026-07-16T08:05:00+08:00",
+            precip: "0.2",
+        },
+    ],
+    summary: "未来一小时有小雨",
+    updateTime: "2026-07-16T08:00:37+08:00",
 };

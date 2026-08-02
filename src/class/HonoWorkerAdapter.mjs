@@ -54,11 +54,14 @@ export default class HonoWorkerAdapter {
      */
     static routeRewrite(url, restPath = "") {
         switch (true) {
-            case url.hostname.startsWith("weatherkit."): {
+            case url.hostname.startsWith("weatherkit."):
+            case url.hostname.startsWith("dev.weatherkit."): {
                 url.hostname = "weatherkit.apple.com";
+                if (url.pathname.startsWith("/weatherkit.apple.com/")) url.pathname = url.pathname.replace("/weatherkit.apple.com", "");
                 break;
             }
             default:
+            case url.hostname.endsWith(".pages.dev"):
             case url.hostname.endsWith(".workers.dev"): {
                 const [host, ...path] = `${restPath}`.split("/");
                 if (!host) break;
